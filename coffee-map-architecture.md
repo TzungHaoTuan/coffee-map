@@ -231,10 +231,55 @@ Query params:
 流程：
 1. 從 `TAIPEI_DISTRICTS` 取得中心座標和 radius
 2. 呼叫 Google Places Nearby Search（type: cafe）
-3. 若已登入，合併使用者打卡狀態
-4. 回傳結果
+3. **Point-in-polygon 過濾**：用 `filterByDistrict` 刪除落在行政區邊界外的結果
+4. 若已登入，合併使用者打卡狀態
+5. 回傳結果
 
 Response: `CafeMarker[]`
+
+---
+
+### 為何需要 Point-in-Polygon 過濾
+
+Places API 以圓形 `center + radius` 搜尋，但行政區邊界是不規則多邊形。`radius` 取的是外接圓半徑（重心到最遠頂點的距離），因此圓形必然超出多邊形邊界，搜尋結果會包含鄰近行政區的店家。
+
+```
+     ╭──────╮
+    /  ╔══╗  \   ← 圓形搜尋範圍（center + radius）
+   /   ║  ║   \
+  |    ║  ║    |  ← 這些角落在圓內但不在 district 內
+   \   ╚══╝   /
+    \  district /
+     ╰──────╯
+```
+
+**解法**：在 `lib/geo-filter.ts` 用 `@turf/boolean-point-in-polygon` 對每個搜尋結果做 point-in-polygon 判斷，只保留真正落在該行政區 GeoJSON polygon 內的店家。
+
+```typescript
+// lib/geo-filter.ts
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
+import { point } from '@turf/helpers'
+import { TAIPEI_DISTRICT_FEATURES } from './districts'
+
+export function filterByDistrict(cafes: CafeMarker[], districtName: string): CafeMarker[] {
+  const feature = TAIPEI_DISTRICT_FEATURES[districtName]
+  if (!feature) return cafes
+  return cafes.filter(cafe => booleanPointInPolygon(point([cafe.lng, cafe.lat]), feature))
+}
+```
+
+`TAIPEI_DISTRICT_FEATURES` 是從 `lib/districts.ts` 匯出的查找表，key 為行政區名稱，value 為對應的 GeoJSON Feature（含完整 Polygon / MultiPolygon 邊界）。
+
+**實際用法**（`app/api/places/nearby/route.ts`）：
+
+```typescript
+import { TAIPEI_DISTRICTS } from '@/lib/districts'
+import { filterByDistrict } from '@/lib/geo-filter'
+
+const district = TAIPEI_DISTRICTS.find(d => d.name === districtName)
+const rawCafes = await fetchFromGooglePlaces(district.center, district.radius)
+const cafes = filterByDistrict(rawCafes, districtName)
+```
 
 ---
 
