@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "mapbox-gl/dist/mapbox-gl.css";
+import Providers from "./providers";
 
 export const metadata: Metadata = {
   title: "Coffee Map",
@@ -14,7 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-TW" className="h-full antialiased">
-      <body className="h-full">{children}</body>
+      <body className="h-full">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

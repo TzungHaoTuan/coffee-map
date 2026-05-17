@@ -19,14 +19,14 @@ export type CafeDetails = {
   placeId: string
   name: string
   formattedAddress: string
-  formattedPhoneNumber?: string
+  internationalPhoneNumber?: string
   openingHours?: {
-    weekdayText: string[]
+    weekdayDescriptions: string[]
     openNow: boolean
   }
   rating?: number
-  photos: Array<{ photoReference: string; width: number; height: number }>
-  website?: string
+  photos: Array<{ photoName: string; widthPx: number; heightPx: number }>
+  websiteUri?: string
 }
 
 export type SidebarView = 'prompt' | 'list' | 'detail'
